@@ -1,1 +1,3 @@
 
+pic为图片
+recording为会议录音
