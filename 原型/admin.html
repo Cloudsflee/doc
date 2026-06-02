@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Nexus - 管理员平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        :root {
+            --primary-dark: #0F172A;
+            --primary-blue: #1E40AF;
+            --accent-blue: #3B82F6;
+            --light-blue: #60A5FA;
+            --pale-blue: #DBEAFE;
+            --ice-blue: #EFF6FF;
+        }
+        .gradient-header { background: linear-gradient(135deg, #1E3A5F 0%, #1E40AF 50%, #3B82F6 100%); }
+        .gradient-card { background: linear-gradient(145deg, #FFFFFF 0%, #F0F7FF 100%); }
+        .hover-lift { transition: all 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(30, 64, 175, 0.15); }
+        .glass-effect { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); }
+        .sidebar-item:hover { background: linear-gradient(90deg, #DBEAFE 0%, transparent 100%); }
+        .sidebar-item.active { background: linear-gradient(90deg, #3B82F6 0%, transparent 100%); color: white; }
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { transform: scale(1); opacity:1; } 50% { transform: scale(1.2); opacity:0.7; } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #94A3B8; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748B; }
+
+        .ide-font { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+
+        /* 日志级别颜色 */
+        .log-info { color: #3B82F6; }
+        .log-warn { color: #F59E0B; }
+        .log-error { color: #EF4444; }
+        .log-debug { color: #8B5CF6; }
+
+        /* 容器状态颜色 */
+        .status-running { background: #DCFCE7; color: #16A34A; }
+        .status-idle { background: #FEF9C3; color: #CA8A04; }
+        .status-paused { background: #E0E7FF; color: #4F46E5; }
+        .status-error { background: #FEE2E2; color: #DC2626; }
+        .status-starting { background: #DBEAFE; color: #2563EB; }
+        .status-stopped { background: #F1F5F9; color: #64748B; }
+
+        /* 表格行hover */
+        .log-row:hover { background: #F8FAFC; }
+        .container-card { transition: all 0.3s ease; }
+        .container-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(30, 64, 175, 0.1); }
+
+        /* Tab按钮 */
+        .admin-tab.active { color: #1E40AF; border-bottom: 2px solid #1E40AF; }
+        .admin-tab { color: #94A3B8; border-bottom: 2px solid transparent; }
+
+        /* 资源进度条动画 */
+        .resource-bar { transition: width 0.6s ease; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Toast 通知容器 -->
+    <div id="toastContainer" class="fixed top-16 right-4 z-[200] space-y-2"></div>
+
+    <!-- ========== 顶部导航栏 ========== -->
+    <header class="gradient-header fixed top-0 left-0 right-0 z-50 h-14">
+        <div class="flex items-center justify-between h-full px-5">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-white font-bold text-base leading-tight">AI Nexus</h1>
+                    <p class="text-blue-200 text-[10px]">管理员平台</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-lg border border-white/20">
+                    <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"></circle></svg>
+                    <span class="text-white/80 text-xs font-medium">系统运行正常</span>
+                </div>
+                <div class="flex items-center gap-2 ml-2 pl-3 border-l border-white/20">
+                    <div class="text-right">
+                        <p class="text-white font-medium text-sm">管理员</p>
+                        <p class="text-blue-200 text-[10px]">Admin</p>
+                    </div>
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-orange-300 to-orange-500 flex items-center justify-center text-white font-semibold text-sm shadow-lg">A</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex pt-14 min-h-screen">
+        <!-- ========== 左侧边栏 ========== -->
+        <aside class="w-56 bg-white border-r border-slate-200 fixed left-0 top-14 bottom-0 overflow-y-auto">
+            <nav class="py-3">
+                <div class="px-4 mb-2"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">系统监控</span></div>
+                <a href="#" onclick="switchPage('logs')" class="sidebar-item active flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all" data-page="logs">
+                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    日志收集
+                </a>
+                <a href="#" onclick="switchPage('containers')" class="sidebar-item flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-600 transition-all" data-page="containers">
+                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+                    容器状态管理
+                </a>
+
+                <div class="px-4 my-3"><div class="border-t border-slate-200"></div></div>
+                <div class="px-4 mb-2"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">系统配置</span></div>
+                <a href="#" onclick="switchPage('init-config')" class="sidebar-item flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-600 transition-all" data-page="init-config">
+                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    容器初始化配置
+                </a>
+
+                <div class="px-4 my-3"><div class="border-t border-slate-200"></div></div>
+                <div class="px-4 mb-2"><span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">资源管理</span></div>
+                <a href="#" onclick="switchPage('resources')" class="sidebar-item flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-600 transition-all" data-page="resources">
+                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    资源管理
+                </a>
+                <a href="#" onclick="switchPage('quotas')" class="sidebar-item flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-blue-600 transition-all" data-page="quotas">
+                    <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    用户配额分配
+                </a>
+            </nav>
+            <!-- 系统概览 -->
+            <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-white to-transparent">
+                <div class="bg-slate-50 rounded-xl p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-slate-700">系统概览</span>
+                    </div>
+                    <div class="space-y-2">
+                        <div>
+                            <div class="flex justify-between text-[10px] mb-0.5"><span class="text-slate-500">服务器在线</span><span class="text-green-600 font-medium">5/5</span></div>
+                            <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full resource-bar" style="width:100%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] mb-0.5"><span class="text-slate-500">容器运行</span><span class="text-blue-600 font-medium">12/18</span></div>
+                            <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full resource-bar" style="width:67%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px] mb-0.5"><span class="text-slate-500">GPU 使用</span><span class="text-blue-600 font-medium">68%</span></div>
+                            <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-purple-400 rounded-full resource-bar" style="width:68%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========== 主内容区 ========== -->
+        <main class="flex-1 ml-56 bg-slate-50">
+
+            <!-- ====== 页面1: 日志收集 ====== -->
+            <div id="page-logs" class="page p-6">
+                <!-- 顶部统计 -->
+                <div class="gradient-header rounded-2xl p-6 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-xl font-bold mb-1">日志收集中心</h2>
+                        <p class="text-blue-100 text-sm">汇聚所有服务器的日志数据，统一检索与分析</p>
+                    </div>
+                </div>
+
+                <!-- 日志统计卡片 -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </div>
+                            <span class="text-green-500 text-xs font-medium">实时</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">128,456</h3>
+                        <p class="text-slate-500 text-xs mt-1">今日日志总量</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            </div>
+                            <span class="text-red-500 text-xs font-medium">+5</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">23</h3>
+                        <p class="text-slate-500 text-xs mt-1">ERROR 日志</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">156</h3>
+                        <p class="text-slate-500 text-xs mt-1">WARN 日志</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path></svg>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">5</h3>
+                        <p class="text-slate-500 text-xs mt-1">服务器来源</p>
+                    </div>
+                </div>
+
+                <!-- 筛选栏 -->
+                <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div class="flex-1 min-w-[200px]">
+                            <div class="relative">
+                                <input id="logSearchInput" type="text" placeholder="搜索日志内容..." class="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" oninput="filterLogs()">
+                                <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                        </div>
+                        <select id="logLevelFilter" onchange="filterLogs()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">全部级别</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARN">WARN</option>
+                            <option value="ERROR">ERROR</option>
+                            <option value="DEBUG">DEBUG</option>
+                        </select>
+                        <select id="logServerFilter" onchange="filterLogs()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all">全部服务器</option>
+                            <option value="gpu-server-01">gpu-server-01</option>
+                            <option value="gpu-server-02">gpu-server-02</option>
+                            <option value="cpu-server-01">cpu-server-01</option>
+                            <option value="storage-server-01">storage-server-01</option>
+                            <option value="api-server-01">api-server-01</option>
+                        </select>
+                        <select id="logTimeFilter" onchange="filterLogs()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1h">最近1小时</option>
+                            <option value="6h">最近6小时</option>
+                            <option value="24h" selected>最近24小时</option>
+                            <option value="7d">最近7天</option>
+                        </select>
+                        <button onclick="refreshLogs()" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            刷新
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 日志表格 -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-5 border-b border-slate-100">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-semibold text-slate-800">日志列表</h3>
+                            <button onclick="exportLogs()" class="text-blue-600 text-xs font-medium flex items-center gap-1 hover:text-blue-700">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                导出日志
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">时间戳</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">服务器来源</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">日志级别</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">日志内容</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody">
+                                <!-- 由 JS 动态渲染 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- 分页 -->
+                    <div class="p-4 border-t border-slate-100 flex items-center justify-between">
+                        <p class="text-xs text-slate-500">共 <span id="logTotalCount">128,456</span> 条日志</p>
+                        <div class="flex items-center gap-1">
+                            <button class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">上一页</button>
+                            <button class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg">1</button>
+                            <button class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">2</button>
+                            <button class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">3</button>
+                            <span class="text-slate-400 text-xs">...</span>
+                            <button class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">1285</button>
+                            <button class="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50">下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 页面2: 容器状态管理 ====== -->
+            <div id="page-containers" class="page hidden p-6">
+                <!-- 顶部横幅 -->
+                <div class="gradient-header rounded-2xl p-6 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-xl font-bold mb-1">容器状态管理</h2>
+                        <p class="text-blue-100 text-sm">监控和管理所有容器的运行状态</p>
+                    </div>
+                </div>
+
+                <!-- 容器状态统计 -->
+                <div class="grid grid-cols-6 gap-4 mb-6">
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <h3 class="text-2xl font-bold text-slate-800">18</h3>
+                        <p class="text-slate-500 text-xs mt-1">容器总数</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full mx-auto mb-2 pulse-dot"></div>
+                        <h3 class="text-2xl font-bold text-green-600">8</h3>
+                        <p class="text-slate-500 text-xs mt-1">正常运行</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <div class="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-2"></div>
+                        <h3 class="text-2xl font-bold text-yellow-600">3</h3>
+                        <p class="text-slate-500 text-xs mt-1">空闲</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <div class="w-3 h-3 bg-indigo-500 rounded-full mx-auto mb-2"></div>
+                        <h3 class="text-2xl font-bold text-indigo-600">2</h3>
+                        <p class="text-slate-500 text-xs mt-1">用户暂停</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <div class="w-3 h-3 bg-red-500 rounded-full mx-auto mb-2"></div>
+                        <h3 class="text-2xl font-bold text-red-600">1</h3>
+                        <p class="text-slate-500 text-xs mt-1">异常/错误</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm hover-lift text-center">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-2"></div>
+                        <h3 class="text-2xl font-bold text-blue-600">2</h3>
+                        <p class="text-slate-500 text-xs mt-1">启动中</p>
+                    </div>
+                </div>
+
+                <!-- 筛选与操作 -->
+                <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <input id="containerSearchInput" type="text" placeholder="搜索容器名称或ID..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" oninput="filterContainers()">
+                            <select id="containerStatusFilter" onchange="filterContainers()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="all">全部状态</option>
+                                <option value="running">正常运行</option>
+                                <option value="idle">空闲</option>
+                                <option value="paused">用户暂停</option>
+                                <option value="error">异常/错误</option>
+                                <option value="starting">启动中</option>
+                                <option value="stopped">已停止</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="batchStartContainers()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">批量启动</button>
+                            <button onclick="batchStopContainers()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">批量停止</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 容器卡片网格 -->
+                <div id="containerGrid" class="grid grid-cols-3 gap-4">
+                    <!-- 由 JS 动态渲染 -->
+                </div>
+            </div>
+
+            <!-- ====== 页面3: 容器初始化配置 ====== -->
+            <div id="page-init-config" class="page hidden p-6">
+                <!-- 顶部横幅 -->
+                <div class="gradient-header rounded-2xl p-6 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-xl font-bold mb-1">容器初始化配置</h2>
+                        <p class="text-blue-100 text-sm">管理用户创建开发环境时可选的镜像、底层算法与GPU型号</p>
+                    </div>
+                </div>
+
+                <!-- 三个Tab：镜像 / 底层算法 / GPU型号 -->
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="flex border-b border-slate-200">
+                        <button onclick="switchInitTab('images')" class="admin-tab active px-8 py-4 text-sm font-semibold transition-all" data-tab="images">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                镜像列表
+                            </span>
+                        </button>
+                        <button onclick="switchInitTab('algorithms')" class="admin-tab px-8 py-4 text-sm font-semibold transition-all" data-tab="algorithms">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                底层算法列表
+                            </span>
+                        </button>
+                        <button onclick="switchInitTab('gpumodels')" class="admin-tab px-8 py-4 text-sm font-semibold transition-all" data-tab="gpumodels">
+                            <span class="flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                GPU型号列表
+                            </span>
+                        </button>
+                    </div>
+
+                    <!-- Tab内容：镜像列表 -->
+                    <div id="tab-images" class="init-tab-content">
+                        <div class="p-5 border-b border-slate-100">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input id="imageSearchInput" type="text" placeholder="搜索镜像名称..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" oninput="filterInitList('images')">
+                                    <select id="imageStatusFilter" onchange="filterInitList('images')" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="all">全部状态</option>
+                                        <option value="enabled">已启用</option>
+                                        <option value="disabled">已禁用</option>
+                                    </select>
+                                </div>
+                                <button onclick="openAddItemModal('images')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                    添加镜像
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">镜像名称</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">版本标签</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">大小</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">镜像文件</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">描述</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="imageTableBody">
+                                    <!-- 由 JS 动态渲染 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab内容：底层算法列表 -->
+                    <div id="tab-algorithms" class="init-tab-content hidden">
+                        <div class="p-5 border-b border-slate-100">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input id="algoSearchInput" type="text" placeholder="搜索算法名称..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" oninput="filterInitList('algorithms')">
+                                    <select id="algoStatusFilter" onchange="filterInitList('algorithms')" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="all">全部状态</option>
+                                        <option value="enabled">已启用</option>
+                                        <option value="disabled">已禁用</option>
+                                    </select>
+                                </div>
+                                <button onclick="openAddItemModal('algorithms')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                    添加算法
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">算法名称</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">版本</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">类别</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">模型文件</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">描述</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="algoTableBody">
+                                    <!-- 由 JS 动态渲染 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Tab内容：GPU型号列表 -->
+                    <div id="tab-gpumodels" class="init-tab-content hidden">
+                        <div class="p-5 border-b border-slate-100">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <input id="gpuSearchInput" type="text" placeholder="搜索GPU型号..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" oninput="filterInitList('gpumodels')">
+                                    <select id="gpuStatusFilter" onchange="filterInitList('gpumodels')" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="all">全部状态</option>
+                                        <option value="enabled">已启用</option>
+                                        <option value="disabled">已禁用</option>
+                                    </select>
+                                </div>
+                                <button onclick="openAddItemModal('gpumodels')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                    添加GPU型号
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200">
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">GPU型号</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">显存</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">算力</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">描述</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                                        <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="gpuTableBody">
+                                    <!-- 由 JS 动态渲染 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 页面4: 资源管理 ====== -->
+            <div id="page-resources" class="page hidden p-6">
+                <!-- 顶部横幅 -->
+                <div class="gradient-header rounded-2xl p-6 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-xl font-bold mb-1">资源管理</h2>
+                        <p class="text-blue-100 text-sm">监控服务器级别资源使用情况</p>
+                    </div>
+                </div>
+
+                <!-- 资源总览卡片 -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                            </div>
+                            <span class="text-green-500 text-xs font-medium">正常</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">62%</h3>
+                        <p class="text-slate-500 text-xs mt-1">CPU 平均使用率</p>
+                        <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full resource-bar" style="width:62%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </div>
+                            <span class="text-yellow-500 text-xs font-medium">偏高</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">78%</h3>
+                        <p class="text-slate-500 text-xs mt-1">内存平均使用率</p>
+                        <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 rounded-full resource-bar" style="width:78%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path></svg>
+                            </div>
+                            <span class="text-green-500 text-xs font-medium">充裕</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">45%</h3>
+                        <p class="text-slate-500 text-xs mt-1">磁盘平均使用率</p>
+                        <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full resource-bar" style="width:45%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <span class="text-orange-500 text-xs font-medium">高负载</span>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">68%</h3>
+                        <p class="text-slate-500 text-xs mt-1">GPU 平均使用率</p>
+                        <div class="mt-3 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-400 rounded-full resource-bar" style="width:68%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 各服务器资源详情 -->
+                <div class="bg-white rounded-xl shadow-sm">
+                    <div class="p-5 border-b border-slate-100">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-semibold text-slate-800">服务器资源详情</h3>
+                            <button onclick="refreshResources()" class="text-blue-600 text-xs font-medium flex items-center gap-1 hover:text-blue-700">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">服务器</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">CPU</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">内存</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">磁盘</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">GPU</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resourceTableBody">
+                                <!-- 由 JS 动态渲染 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== 页面5: 用户配额分配 ====== -->
+            <div id="page-quotas" class="page hidden p-6">
+                <!-- 顶部横幅 -->
+                <div class="gradient-header rounded-2xl p-6 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24"></div>
+                    <div class="relative z-10">
+                        <h2 class="text-white text-xl font-bold mb-1">用户配额分配</h2>
+                        <p class="text-blue-100 text-sm">管理用户资源配额与使用限制</p>
+                    </div>
+                </div>
+
+                <!-- 配额统计 -->
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">24</h3>
+                        <p class="text-slate-500 text-xs mt-1">注册用户总数</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">18</h3>
+                        <p class="text-slate-500 text-xs mt-1">已分配配额用户</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-5 shadow-sm hover-lift">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                            </div>
+                        </div>
+                        <h3 class="text-2xl font-bold text-slate-800">3</h3>
+                        <p class="text-slate-500 text-xs mt-1">配额超限用户</p>
+                    </div>
+                </div>
+
+                <!-- 用户配额表格 -->
+                <div class="bg-white rounded-xl shadow-sm">
+                    <div class="p-5 border-b border-slate-100">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-base font-semibold text-slate-800">用户配额列表</h3>
+                            <div class="flex items-center gap-2">
+                                <input id="quotaSearchInput" type="text" placeholder="搜索用户..." class="border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-48" oninput="filterQuotas()">
+                                <button onclick="openEditQuotaModal(null)" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                    新增配额
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">用户</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">CPU 配额</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">内存配额</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">GPU 配额</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">存储配额</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">容器上限</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">使用状态</th>
+                                    <th class="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotaTableBody">
+                                <!-- 由 JS 动态渲染 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ========== 编辑配额弹窗 ========== -->
+    <div id="editQuotaModal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0" onclick="closeEditQuotaModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-bold text-slate-800">编辑用户配额</h3>
+                    <button onclick="closeEditQuotaModal()" class="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">用户名</label>
+                        <input id="quotaUsername" type="text" placeholder="输入用户名" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">CPU 配额 (核)</label>
+                            <input id="quotaCPU" type="number" value="8" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">内存配额 (GB)</label>
+                            <input id="quotaMemory" type="number" value="32" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">GPU 配额 (块)</label>
+                            <input id="quotaGPU" type="number" value="2" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">存储配额 (GB)</label>
+                            <input id="quotaStorage" type="number" value="500" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">容器上限 (个)</label>
+                        <input id="quotaContainers" type="number" value="5" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="closeEditQuotaModal()" class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">取消</button>
+                    <button onclick="saveQuota()" class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 初始化配置增删改弹窗 ========== -->
+    <div id="initItemModal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0" onclick="closeInitItemModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 id="initItemModalTitle" class="text-lg font-bold text-slate-800">添加项目</h3>
+                    <button onclick="closeInitItemModal()" class="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div id="initItemFormContainer" class="space-y-4">
+                    <!-- 由 JS 根据类别动态生成表单 -->
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="closeInitItemModal()" class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">取消</button>
+                    <button onclick="saveInitItem()" class="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 删除确认弹窗 ========== -->
+    <div id="deleteConfirmModal" class="fixed inset-0 z-[100] hidden">
+        <div class="modal-overlay absolute inset-0" onclick="closeDeleteConfirmModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800">确认删除</h3>
+                        <p id="deleteConfirmMsg" class="text-sm text-slate-500 mt-1">确定要删除此项吗？此操作不可撤销。</p>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-4">
+                    <button onclick="closeDeleteConfirmModal()" class="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">取消</button>
+                    <button onclick="confirmDeleteItem()" class="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">确认删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== Toast 通知 ==========
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', warning: 'bg-yellow-500', info: 'bg-blue-500' };
+            const icons = {
+                success: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
+                error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
+                warning: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
+                info: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+            };
+            const toast = document.createElement('div');
+            toast.className = `${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium transform translate-x-full transition-transform duration-300`;
+            toast.innerHTML = `${icons[type]}<span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => { toast.classList.remove('translate-x-full'); toast.classList.add('translate-x-0'); });
+            setTimeout(() => {
+                toast.classList.remove('translate-x-0');
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // ========== 页面切换 ==========
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+            const target = document.getElementById('page-' + page);
+            if (target) target.classList.remove('hidden');
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+                item.classList.add('text-slate-600');
+                if (item.dataset.page === page) {
+                    item.classList.add('active');
+                    item.classList.remove('text-slate-600');
+                }
+            });
+        }
+
+        // ========== 日志数据 ==========
+        const logData = [
+            { timestamp: '2026-05-15 16:48:23', server: 'gpu-server-01', level: 'INFO', content: 'Container bert-training-01 started successfully, allocated GPU 0' },
+            { timestamp: '2026-05-15 16:47:55', server: 'gpu-server-02', level: 'ERROR', content: 'CUDA out of memory on GPU 1, container yolo-det-03 terminated unexpectedly' },
+            { timestamp: '2026-05-15 16:45:12', server: 'cpu-server-01', level: 'WARN', content: 'Memory usage reached 85% threshold on node, consider scaling resources' },
+            { timestamp: '2026-05-15 16:43:08', server: 'api-server-01', level: 'INFO', content: 'API request rate: 1,245 req/s, all endpoints responding normally' },
+            { timestamp: '2026-05-15 16:41:30', server: 'storage-server-01', level: 'INFO', content: 'Dataset upload completed: industrial-defect-v2.tar.gz (5.1GB)' },
+            { timestamp: '2026-05-15 16:40:15', server: 'gpu-server-01', level: 'WARN', content: 'GPU temperature approaching thermal limit (82°C), monitoring closely' },
+            { timestamp: '2026-05-15 16:38:44', server: 'gpu-server-02', level: 'INFO', content: 'Training checkpoint saved: epoch 15, loss 0.0342, accuracy 97.8%' },
+            { timestamp: '2026-05-15 16:35:22', server: 'api-server-01', level: 'ERROR', content: 'Authentication service timeout after 30s, retrying connection to LDAP' },
+            { timestamp: '2026-05-15 16:33:10', server: 'cpu-server-01', level: 'DEBUG', content: 'Garbage collection completed: freed 2.3GB, current heap usage 12.8GB' },
+            { timestamp: '2026-05-15 16:30:05', server: 'storage-server-01', level: 'INFO', content: 'Storage replication sync completed across 3 nodes, 100% consistency' },
+            { timestamp: '2026-05-15 16:28:43', server: 'gpu-server-01', level: 'WARN', content: 'Container gpt-finetune-02 CPU usage exceeded 90% for 5 minutes' },
+            { timestamp: '2026-05-15 16:25:18', server: 'api-server-01', level: 'INFO', content: 'User session cleanup: 156 expired sessions removed from cache' },
+            { timestamp: '2026-05-15 16:22:07', server: 'gpu-server-02', level: 'ERROR', content: 'NVIDIA driver crashed on GPU 2, attempting automatic recovery' },
+            { timestamp: '2026-05-15 16:20:30', server: 'storage-server-01', level: 'WARN', content: 'Disk I/O latency spike detected: average read time 45ms (threshold 30ms)' },
+            { timestamp: '2026-05-15 16:18:55', server: 'cpu-server-01', level: 'INFO', content: 'New user registered: liwei@example.com, default quota assigned' },
+        ];
+
+        function renderLogs(data) {
+            const tbody = document.getElementById('logTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = data.map(log => {
+                const levelClass = `log-${log.level.toLowerCase()}`;
+                const levelBg = { INFO: 'bg-blue-100 text-blue-700', WARN: 'bg-yellow-100 text-yellow-700', ERROR: 'bg-red-100 text-red-700', DEBUG: 'bg-purple-100 text-purple-700' }[log.level] || 'bg-slate-100 text-slate-700';
+                return `<tr class="log-row border-b border-slate-100 transition-colors">
+                    <td class="px-5 py-3 text-xs text-slate-500 ide-font whitespace-nowrap">${log.timestamp}</td>
+                    <td class="px-5 py-3 text-xs text-slate-700 font-medium">${log.server}</td>
+                    <td class="px-5 py-3"><span class="px-2 py-0.5 ${levelBg} text-[10px] rounded-full font-semibold">${log.level}</span></td>
+                    <td class="px-5 py-3 text-xs text-slate-600 max-w-md">${log.content}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterLogs() {
+            const search = document.getElementById('logSearchInput').value.toLowerCase();
+            const level = document.getElementById('logLevelFilter').value;
+            const server = document.getElementById('logServerFilter').value;
+            const filtered = logData.filter(log => {
+                const matchSearch = !search || log.content.toLowerCase().includes(search) || log.server.toLowerCase().includes(search);
+                const matchLevel = level === 'all' || log.level === level;
+                const matchServer = server === 'all' || log.server === server;
+                return matchSearch && matchLevel && matchServer;
+            });
+            renderLogs(filtered);
+        }
+
+        function refreshLogs() {
+            showToast('日志已刷新', 'success');
+            renderLogs(logData);
+        }
+
+        function exportLogs() {
+            showToast('日志导出中...', 'info');
+        }
+
+        // ========== 容器数据 ==========
+        const containerData = [
+            { id: 'ctr-001', name: 'bert-training-01', server: 'gpu-server-01', status: 'running', image: 'pytorch:2.1-cuda12.1', uptime: '2h 15min', cpu: '78%', memory: '12.4 GB', gpu: 'GPU 0 (A100)' },
+            { id: 'ctr-002', name: 'gpt-finetune-02', server: 'gpu-server-01', status: 'running', image: 'tensorflow:2.15-gpu', uptime: '5h 42min', cpu: '92%', memory: '28.1 GB', gpu: 'GPU 1 (A100)' },
+            { id: 'ctr-003', name: 'yolo-det-03', server: 'gpu-server-02', status: 'error', image: 'pytorch:2.1-cuda12.1', uptime: '-', cpu: '-', memory: '-', gpu: 'GPU 1 (V100)' },
+            { id: 'ctr-004', name: 'data-pipeline-01', server: 'cpu-server-01', status: 'running', image: 'jupyter/scipy-notebook', uptime: '12h 05min', cpu: '45%', memory: '6.8 GB', gpu: '-' },
+            { id: 'ctr-005', name: 'embedding-gen-01', server: 'gpu-server-02', status: 'idle', image: 'pytorch:2.1-cuda12.1', uptime: '0h 00min', cpu: '2%', memory: '4.2 GB', gpu: 'GPU 0 (V100)' },
+            { id: 'ctr-006', name: 'image-annotate-02', server: 'cpu-server-01', status: 'idle', image: 'jupyter/scipy-notebook', uptime: '0h 00min', cpu: '0%', memory: '2.1 GB', gpu: '-' },
+            { id: 'ctr-007', name: 'speech-model-01', server: 'gpu-server-01', status: 'paused', image: 'tensorflow:2.15-gpu', uptime: '暂停', cpu: '0%', memory: '8.5 GB', gpu: 'GPU 2 (A100)' },
+            { id: 'ctr-008', name: 'nlp-preprocess-01', server: 'cpu-server-01', status: 'paused', image: 'continuumio/miniconda', uptime: '暂停', cpu: '0%', memory: '3.2 GB', gpu: '-' },
+            { id: 'ctr-009', name: 'diffusion-train-01', server: 'gpu-server-02', status: 'starting', image: 'pytorch:2.1-cuda12.1', uptime: '启动中', cpu: '15%', memory: '5.0 GB', gpu: 'GPU 2 (V100)' },
+            { id: 'ctr-010', name: 'rl-agent-01', server: 'gpu-server-02', status: 'starting', image: 'tensorflow:2.15-gpu', uptime: '启动中', cpu: '8%', memory: '2.5 GB', gpu: 'GPU 3 (V100)' },
+            { id: 'ctr-011', name: 'monitor-agent-01', server: 'api-server-01', status: 'running', image: 'continuumio/miniconda', uptime: '48h 12min', cpu: '12%', memory: '1.8 GB', gpu: '-' },
+            { id: 'ctr-012', name: 'cache-redis-01', server: 'storage-server-01', status: 'running', image: 'redis:7-alpine', uptime: '72h 30min', cpu: '5%', memory: '4.0 GB', gpu: '-' },
+            { id: 'ctr-013', name: 'db-postgres-01', server: 'storage-server-01', status: 'running', image: 'postgres:16', uptime: '72h 30min', cpu: '18%', memory: '6.5 GB', gpu: '-' },
+            { id: 'ctr-014', name: 'api-gateway-01', server: 'api-server-01', status: 'running', image: 'nginx:alpine', uptime: '72h 30min', cpu: '8%', memory: '0.5 GB', gpu: '-' },
+            { id: 'ctr-015', name: 'video-process-01', server: 'gpu-server-01', status: 'running', image: 'pytorch:2.1-cuda12.1', uptime: '1h 20min', cpu: '55%', memory: '9.2 GB', gpu: 'GPU 3 (A100)' },
+            { id: 'ctr-016', name: 'text-classify-02', server: 'cpu-server-01', status: 'idle', image: 'jupyter/scipy-notebook', uptime: '0h 00min', cpu: '0%', memory: '1.8 GB', gpu: '-' },
+            { id: 'ctr-017', name: 'old-experiment-01', server: 'gpu-server-02', status: 'stopped', image: 'pytorch:2.0-cuda11.8', uptime: '-', cpu: '-', memory: '-', gpu: '-' },
+            { id: 'ctr-018', name: 'legacy-notebook-01', server: 'cpu-server-01', status: 'stopped', image: 'jupyter/datascience-notebook', uptime: '-', cpu: '-', memory: '-', gpu: '-' },
+        ];
+
+        const statusConfig = {
+            running: { label: '正常运行', class: 'status-running', dot: 'bg-green-500' },
+            idle: { label: '空闲', class: 'status-idle', dot: 'bg-yellow-500' },
+            paused: { label: '用户暂停', class: 'status-paused', dot: 'bg-indigo-500' },
+            error: { label: '异常/错误', class: 'status-error', dot: 'bg-red-500' },
+            starting: { label: '启动中', class: 'status-starting', dot: 'bg-blue-500' },
+            stopped: { label: '已停止', class: 'status-stopped', dot: 'bg-slate-400' },
+        };
+
+        function renderContainers(data) {
+            const grid = document.getElementById('containerGrid');
+            if (!grid) return;
+            grid.innerHTML = data.map(c => {
+                const st = statusConfig[c.status];
+                const isActive = c.status === 'running' || c.status === 'starting';
+                return `<div class="container-card bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${c.status === 'error' ? 'border-red-200' : ''}">
+                    <div class="p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 ${st.dot} rounded-full ${c.status === 'running' ? 'pulse-dot' : ''}"></div>
+                                <h4 class="font-semibold text-slate-800 text-sm">${c.name}</h4>
+                            </div>
+                            <span class="px-2 py-0.5 ${st.class} text-[10px] rounded-full font-medium">${st.label}</span>
+                        </div>
+                        <div class="space-y-1.5 text-xs text-slate-500 mb-3">
+                            <div class="flex justify-between"><span>容器ID</span><span class="text-slate-700 ide-font">${c.id}</span></div>
+                            <div class="flex justify-between"><span>服务器</span><span class="text-slate-700">${c.server}</span></div>
+                            <div class="flex justify-between"><span>镜像</span><span class="text-slate-700 ide-font text-[11px]">${c.image}</span></div>
+                            <div class="flex justify-between"><span>运行时间</span><span class="text-slate-700">${c.uptime}</span></div>
+                            <div class="flex justify-between"><span>CPU</span><span class="text-slate-700">${c.cpu}</span></div>
+                            <div class="flex justify-between"><span>内存</span><span class="text-slate-700">${c.memory}</span></div>
+                            <div class="flex justify-between"><span>GPU</span><span class="text-slate-700">${c.gpu}</span></div>
+                        </div>
+                        <div class="flex gap-2">
+                            ${c.status === 'running' ? `<button onclick="controlContainer('${c.id}','pause')" class="flex-1 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors">暂停</button><button onclick="controlContainer('${c.id}','stop')" class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">停止</button>` : ''}
+                            ${c.status === 'idle' ? `<button onclick="controlContainer('${c.id}','start')" class="flex-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">启动</button><button onclick="controlContainer('${c.id}','stop')" class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">停止</button>` : ''}
+                            ${c.status === 'paused' ? `<button onclick="controlContainer('${c.id}','resume')" class="flex-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">恢复</button><button onclick="controlContainer('${c.id}','stop')" class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">停止</button>` : ''}
+                            ${c.status === 'error' ? `<button onclick="controlContainer('${c.id}','restart')" class="flex-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition-colors">重启</button><button onclick="controlContainer('${c.id}','stop')" class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">终止</button>` : ''}
+                            ${c.status === 'starting' ? `<button onclick="controlContainer('${c.id}','stop')" class="flex-1 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-xs font-medium">等待中...</button>` : ''}
+                            ${c.status === 'stopped' ? `<button onclick="controlContainer('${c.id}','start')" class="flex-1 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">启动</button><button onclick="controlContainer('${c.id}','delete')" class="flex-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">删除</button>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function filterContainers() {
+            const search = document.getElementById('containerSearchInput').value.toLowerCase();
+            const status = document.getElementById('containerStatusFilter').value;
+            const filtered = containerData.filter(c => {
+                const matchSearch = !search || c.name.toLowerCase().includes(search) || c.id.toLowerCase().includes(search);
+                const matchStatus = status === 'all' || c.status === status;
+                return matchSearch && matchStatus;
+            });
+            renderContainers(filtered);
+        }
+
+        function controlContainer(id, action) {
+            const names = { pause: '暂停', stop: '停止', start: '启动', resume: '恢复', restart: '重启', delete: '删除' };
+            showToast(`容器 ${id} 正在${names[action]}...`, 'info');
+        }
+
+        function batchStartContainers() { showToast('正在批量启动选中容器...', 'info'); }
+        function batchStopContainers() { showToast('正在批量停止选中容器...', 'info'); }
+
+        // ========== 容器初始化配置数据 ==========
+        let initConfigData = {
+            images: [
+                { id: 'img-01', name: 'pytorch:2.1-cuda12.1', tag: '2.1-cuda12.1', size: '8.2 GB', desc: 'PyTorch 深度学习框架，含 CUDA 12.1 支持', status: 'enabled', fileName: 'pytorch-2.1-cuda12.1.tar.gz', fileSize: '8.2 GB' },
+                { id: 'img-02', name: 'tensorflow:2.15-gpu', tag: '2.15-gpu', size: '7.5 GB', desc: 'TensorFlow GPU 版本，适用于模型训练与推理', status: 'enabled', fileName: 'tensorflow-2.15-gpu.tar.gz', fileSize: '7.5 GB' },
+                { id: 'img-03', name: 'jupyter/scipy-notebook:py3.11', tag: 'py3.11', size: '3.1 GB', desc: 'Jupyter 科学计算环境，预装 NumPy/Pandas/Matplotlib', status: 'enabled', fileName: 'jupyter-scipy-py3.11.tar', fileSize: '3.1 GB' },
+                { id: 'img-04', name: 'continuumio/miniconda:latest', tag: 'latest', size: '0.9 GB', desc: 'Miniconda 轻量级 Python 环境管理', status: 'enabled', fileName: 'miniconda-latest.tar', fileSize: '0.9 GB' },
+                { id: 'img-05', name: 'pytorch:2.0-cuda11.8', tag: '2.0-cuda11.8', size: '7.8 GB', desc: 'PyTorch 2.0 旧版本，CUDA 11.8 兼容', status: 'disabled', fileName: 'pytorch-2.0-cuda11.8.tar.gz', fileSize: '7.8 GB' },
+                { id: 'img-06', name: 'huggingface/transformers-pytorch-gpu', tag: 'latest', size: '12.4 GB', desc: 'HuggingFace Transformers GPU 环境，预装主流NLP模型', status: 'enabled', fileName: 'huggingface-transformers-gpu.tar.gz', fileSize: '12.4 GB' },
+            ],
+            algorithms: [
+                { id: 'algo-01', name: 'BERT', version: 'base-uncased', category: 'NLP', desc: 'Google BERT 预训练语言模型，文本理解与分类', status: 'enabled', fileList: [{name: 'bert-base-uncased.bin', size: '420 MB'}, {name: 'config.json', size: '1.2 KB'}, {name: 'tokenizer.json', size: '466 KB'}] },
+                { id: 'algo-02', name: 'GPT-2', version: 'medium', category: 'NLP', desc: 'OpenAI GPT-2 文本生成模型', status: 'enabled', fileList: [{name: 'gpt2-medium.bin', size: '1.5 GB'}, {name: 'config.json', size: '0.8 KB'}] },
+                { id: 'algo-03', name: 'YOLOv8', version: '8.1', category: '计算机视觉', desc: 'Ultralytics YOLOv8 目标检测算法', status: 'enabled', fileList: [{name: 'yolov8n.pt', size: '6.2 MB'}] },
+                { id: 'algo-04', name: 'Stable Diffusion', version: 'SD 2.1', category: '生成模型', desc: 'Stability AI 图像生成扩散模型', status: 'enabled', fileList: [{name: 'sd-v2-1.safetensors', size: '5.2 GB'}, {name: 'config.json', size: '2.1 KB'}] },
+                { id: 'algo-05', name: 'Whisper', version: 'large-v3', category: '语音', desc: 'OpenAI Whisper 语音识别与翻译模型', status: 'enabled', fileList: [{name: 'whisper-large-v3.pt', size: '3.1 GB'}] },
+                { id: 'algo-06', name: 'ResNet-50', version: 'v1.5', category: '计算机视觉', desc: '经典残差网络，图像分类与特征提取', status: 'disabled', fileList: [{name: 'resnet50-v1.5.onnx', size: '97 MB'}] },
+                { id: 'algo-07', name: 'LLaMA 3', version: '8B-Instruct', category: 'NLP', desc: 'Meta LLaMA 3 指令微调大语言模型', status: 'enabled', fileList: [{name: 'llama-3-8b-instruct.safetensors', size: '15 GB'}, {name: 'tokenizer.model', size: '1.8 MB'}, {name: 'config.json', size: '1.5 KB'}] },
+            ],
+            gpumodels: [
+                { id: 'gpu-01', name: 'NVIDIA A100', vram: '80 GB', compute: '312 TFLOPS (FP16)', desc: 'Ampere 架构数据中心GPU，适合大规模训练', status: 'enabled' },
+                { id: 'gpu-02', name: 'NVIDIA V100', vram: '32 GB', compute: '125 TFLOPS (FP16)', desc: 'Volta 架构GPU，通用训练与推理', status: 'enabled' },
+                { id: 'gpu-03', name: 'NVIDIA A10', vram: '24 GB', compute: '125 TFLOPS (FP16)', desc: 'Ampere 架构推理GPU，适合模型推理与可视化', status: 'enabled' },
+                { id: 'gpu-04', name: 'NVIDIA RTX 4090', vram: '24 GB', compute: '165 TFLOPS (FP16)', desc: 'Ada Lovelace 架构消费级GPU，适合中小规模训练', status: 'enabled' },
+                { id: 'gpu-05', name: 'NVIDIA T4', vram: '16 GB', compute: '65 TFLOPS (FP16)', desc: 'Turing 架构推理GPU，低成本推理场景', status: 'disabled' },
+                { id: 'gpu-06', name: 'NVIDIA H100', vram: '80 GB', compute: '990 TFLOPS (FP16)', desc: 'Hopper 架构旗舰GPU，大模型训练首选', status: 'enabled' },
+            ]
+        };
+
+        let currentInitTab = 'images';
+        let editingItemId = null;
+        let deletingItemInfo = null;
+        let pendingImageFile = null;
+        let pendingAlgoFiles = [];
+
+        // ========== 文件上传相关函数 ==========
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function handleFileSelect(input, type) {
+            if (type === 'images') {
+                if (!input.files || input.files.length === 0) return;
+                const file = input.files[0];
+                pendingImageFile = file;
+                document.getElementById('imageFileUploadPrompt').classList.add('hidden');
+                document.getElementById('imageFileInfo').classList.remove('hidden');
+                document.getElementById('imageFileName').textContent = file.name;
+                document.getElementById('imageFileSizeText').textContent = formatFileSize(file.size);
+                simulateUpload('images');
+            } else if (type === 'algorithms') {
+                if (!input.files || input.files.length === 0) return;
+                pendingAlgoFiles = Array.from(input.files);
+                document.getElementById('algoFileUploadPrompt').classList.add('hidden');
+                document.getElementById('algoFileInfo').classList.remove('hidden');
+                document.getElementById('algoFileCount').textContent = `已选择 ${pendingAlgoFiles.length} 个文件`;
+                const listEl = document.getElementById('algoFileList');
+                listEl.innerHTML = pendingAlgoFiles.map(f => `<div class="truncate">${f.name} (${formatFileSize(f.size)})</div>`).join('');
+                simulateUpload('algorithms');
+            }
+        }
+
+        function simulateUpload(type) {
+            const progressEl = document.getElementById(type === 'images' ? 'imageUploadProgress' : 'algoUploadProgress');
+            const barEl = document.getElementById(type === 'images' ? 'imageUploadBar' : 'algoUploadBar');
+            const percentEl = document.getElementById(type === 'images' ? 'imageUploadPercent' : 'algoUploadPercent');
+            progressEl.classList.remove('hidden');
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 15 + 5;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    setTimeout(() => { progressEl.classList.add('hidden'); }, 600);
+                }
+                barEl.style.width = progress + '%';
+                percentEl.textContent = Math.round(progress) + '%';
+            }, 200);
+        }
+
+        function clearFileUpload(type) {
+            if (type === 'images') {
+                pendingImageFile = null;
+                document.getElementById('imageFileInput').value = '';
+                document.getElementById('imageFileUploadPrompt').classList.remove('hidden');
+                document.getElementById('imageFileInfo').classList.add('hidden');
+                document.getElementById('imageUploadProgress').classList.add('hidden');
+            } else if (type === 'algorithms') {
+                pendingAlgoFiles = [];
+                document.getElementById('algoFileInput').value = '';
+                document.getElementById('algoFileUploadPrompt').classList.remove('hidden');
+                document.getElementById('algoFileInfo').classList.add('hidden');
+                document.getElementById('algoUploadProgress').classList.add('hidden');
+            }
+        }
+
+        function setupDropZone(zoneId, inputId, type) {
+            const zone = document.getElementById(zoneId);
+            if (!zone) return;
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('border-blue-400', 'bg-blue-50');
+            });
+            zone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                zone.classList.remove('border-blue-400', 'bg-blue-50');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('border-blue-400', 'bg-blue-50');
+                const input = document.getElementById(inputId);
+                if (e.dataTransfer.files.length > 0) {
+                    input.files = e.dataTransfer.files;
+                    handleFileSelect(input, type);
+                }
+            });
+        }
+
+        function switchInitTab(tab) {
+            currentInitTab = tab;
+            document.querySelectorAll('.init-tab-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            document.querySelectorAll('.admin-tab').forEach(t => {
+                t.classList.remove('active');
+                if (t.dataset.tab === tab) t.classList.add('active');
+            });
+        }
+
+        function renderInitList(type) {
+            const data = initConfigData[type];
+            if (type === 'images') {
+                const tbody = document.getElementById('imageTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = data.map(item => `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-4 text-sm text-slate-800 font-medium ide-font">${item.name}</td>
+                    <td class="px-5 py-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] rounded font-medium ide-font">${item.tag}</span></td>
+                    <td class="px-5 py-4 text-xs text-slate-600">${item.size}</td>
+                    <td class="px-5 py-4 text-xs text-slate-500">${item.fileName ? `<span class="flex items-center gap-1"><svg class="h-3.5 w-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="truncate max-w-[120px]" title="${item.fileName}">${item.fileName}</span></span>` : '<span class="text-slate-300">未上传</span>'}</td>
+                    <td class="px-5 py-4 text-xs text-slate-500 max-w-xs">${item.desc}</td>
+                    <td class="px-5 py-4">
+                        <button onclick="toggleInitItemStatus('${type}','${item.id}')" class="px-2 py-0.5 ${item.status === 'enabled' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'} text-[10px] rounded-full font-medium hover:opacity-80 transition-opacity cursor-pointer">
+                            ${item.status === 'enabled' ? '已启用' : '已禁用'}
+                        </button>
+                    </td>
+                    <td class="px-5 py-4">
+                        <button onclick="openEditItemModal('${type}','${item.id}')" class="text-blue-600 text-xs font-medium hover:text-blue-700 mr-3">编辑</button>
+                        <button onclick="openDeleteConfirmModal('${type}','${item.id}')" class="text-red-400 text-xs font-medium hover:text-red-600">删除</button>
+                    </td>
+                </tr>`).join('');
+            } else if (type === 'algorithms') {
+                const tbody = document.getElementById('algoTableBody');
+                if (!tbody) return;
+                const categoryColors = {
+                    'NLP': 'bg-indigo-50 text-indigo-700',
+                    '计算机视觉': 'bg-emerald-50 text-emerald-700',
+                    '生成模型': 'bg-purple-50 text-purple-700',
+                    '语音': 'bg-orange-50 text-orange-700',
+                };
+                tbody.innerHTML = data.map(item => `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-4 text-sm text-slate-800 font-medium">${item.name}</td>
+                    <td class="px-5 py-4"><span class="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] rounded font-medium ide-font">${item.version}</span></td>
+                    <td class="px-5 py-4"><span class="px-2 py-0.5 ${categoryColors[item.category] || 'bg-slate-50 text-slate-700'} text-[10px] rounded font-medium">${item.category}</span></td>
+                    <td class="px-5 py-4 text-xs text-slate-500">${item.fileList && item.fileList.length > 0 ? `<span class="flex items-center gap-1"><svg class="h-3.5 w-3.5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>${item.fileList.length} 个文件</span>` : '<span class="text-slate-300">未上传</span>'}</td>
+                    <td class="px-5 py-4 text-xs text-slate-500 max-w-xs">${item.desc}</td>
+                    <td class="px-5 py-4">
+                        <button onclick="toggleInitItemStatus('${type}','${item.id}')" class="px-2 py-0.5 ${item.status === 'enabled' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'} text-[10px] rounded-full font-medium hover:opacity-80 transition-opacity cursor-pointer">
+                            ${item.status === 'enabled' ? '已启用' : '已禁用'}
+                        </button>
+                    </td>
+                    <td class="px-5 py-4">
+                        <button onclick="openEditItemModal('${type}','${item.id}')" class="text-blue-600 text-xs font-medium hover:text-blue-700 mr-3">编辑</button>
+                        <button onclick="openDeleteConfirmModal('${type}','${item.id}')" class="text-red-400 text-xs font-medium hover:text-red-600">删除</button>
+                    </td>
+                </tr>`).join('');
+            } else if (type === 'gpumodels') {
+                const tbody = document.getElementById('gpuTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = data.map(item => `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-4 text-sm text-slate-800 font-medium">${item.name}</td>
+                    <td class="px-5 py-4"><span class="px-2 py-0.5 bg-cyan-50 text-cyan-700 text-[10px] rounded font-medium">${item.vram}</span></td>
+                    <td class="px-5 py-4 text-xs text-slate-600 ide-font">${item.compute}</td>
+                    <td class="px-5 py-4 text-xs text-slate-500 max-w-xs">${item.desc}</td>
+                    <td class="px-5 py-4">
+                        <button onclick="toggleInitItemStatus('${type}','${item.id}')" class="px-2 py-0.5 ${item.status === 'enabled' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'} text-[10px] rounded-full font-medium hover:opacity-80 transition-opacity cursor-pointer">
+                            ${item.status === 'enabled' ? '已启用' : '已禁用'}
+                        </button>
+                    </td>
+                    <td class="px-5 py-4">
+                        <button onclick="openEditItemModal('${type}','${item.id}')" class="text-blue-600 text-xs font-medium hover:text-blue-700 mr-3">编辑</button>
+                        <button onclick="openDeleteConfirmModal('${type}','${item.id}')" class="text-red-400 text-xs font-medium hover:text-red-600">删除</button>
+                    </td>
+                </tr>`).join('');
+            }
+        }
+
+        function filterInitList(type) {
+            let searchInput, statusFilter, data;
+            if (type === 'images') {
+                searchInput = document.getElementById('imageSearchInput').value.toLowerCase();
+                statusFilter = document.getElementById('imageStatusFilter').value;
+            } else if (type === 'algorithms') {
+                searchInput = document.getElementById('algoSearchInput').value.toLowerCase();
+                statusFilter = document.getElementById('algoStatusFilter').value;
+            } else {
+                searchInput = document.getElementById('gpuSearchInput').value.toLowerCase();
+                statusFilter = document.getElementById('gpuStatusFilter').value;
+            }
+            // For filtering we temporarily swap data, render, then restore
+            const originalData = initConfigData[type];
+            initConfigData[type] = originalData.filter(item => {
+                const matchSearch = !searchInput || item.name.toLowerCase().includes(searchInput) || item.desc.toLowerCase().includes(searchInput);
+                const matchStatus = statusFilter === 'all' || item.status === statusFilter;
+                return matchSearch && matchStatus;
+            });
+            renderInitList(type);
+            initConfigData[type] = originalData;
+        }
+
+        function toggleInitItemStatus(type, id) {
+            const item = initConfigData[type].find(i => i.id === id);
+            if (!item) return;
+            item.status = item.status === 'enabled' ? 'disabled' : 'enabled';
+            renderInitList(type);
+            showToast(`${item.name} 已${item.status === 'enabled' ? '启用' : '禁用'}`, 'success');
+        }
+
+        function openAddItemModal(type) {
+            editingItemId = null;
+            pendingImageFile = null;
+            pendingAlgoFiles = [];
+            const titles = { images: '添加镜像', algorithms: '添加算法', gpumodels: '添加GPU型号' };
+            document.getElementById('initItemModalTitle').textContent = titles[type];
+            renderInitItemForm(type, null);
+            document.getElementById('initItemModal').classList.remove('hidden');
+            document.getElementById('initItemModal').dataset.type = type;
+            setTimeout(() => {
+                if (type === 'images') setupDropZone('imageFileDropZone', 'imageFileInput', 'images');
+                if (type === 'algorithms') setupDropZone('algoFileDropZone', 'algoFileInput', 'algorithms');
+            }, 50);
+        }
+
+        function openEditItemModal(type, id) {
+            editingItemId = id;
+            pendingImageFile = null;
+            pendingAlgoFiles = [];
+            const item = initConfigData[type].find(i => i.id === id);
+            if (!item) return;
+            const titles = { images: '编辑镜像', algorithms: '编辑算法', gpumodels: '编辑GPU型号' };
+            document.getElementById('initItemModalTitle').textContent = titles[type];
+            renderInitItemForm(type, item);
+            document.getElementById('initItemModal').classList.remove('hidden');
+            document.getElementById('initItemModal').dataset.type = type;
+            setTimeout(() => {
+                if (type === 'images') setupDropZone('imageFileDropZone', 'imageFileInput', 'images');
+                if (type === 'algorithms') setupDropZone('algoFileDropZone', 'algoFileInput', 'algorithms');
+            }, 50);
+        }
+
+        function renderInitItemForm(type, item) {
+            const container = document.getElementById('initItemFormContainer');
+            if (type === 'images') {
+                const existingFile = item && item.fileName ? item.fileName : '';
+                const existingFileSize = item && item.fileSize ? item.fileSize : '';
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">镜像名称 <span class="text-red-500">*</span></label>
+                        <input id="formFieldName" type="text" value="${item ? item.name : ''}" placeholder="例如 pytorch:2.1-cuda12.1" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ide-font">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">版本标签</label>
+                            <input id="formFieldTag" type="text" value="${item ? item.tag : ''}" placeholder="例如 2.1-cuda12.1" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ide-font">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">大小</label>
+                            <input id="formFieldSize" type="text" value="${item ? item.size : ''}" placeholder="例如 8.2 GB" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">镜像文件 <span class="text-red-500">*</span></label>
+                        <div id="imageFileDropZone" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors" onclick="document.getElementById('imageFileInput').click()">
+                            <div id="imageFileUploadPrompt">
+                                <svg class="mx-auto h-10 w-10 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 48 48"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M24 8v24m0-24l-8 8m8-8l8 8M8 36h32a4 4 0 01-4 4H12a4 4 0 01-4-4z"/></svg>
+                                <p class="text-sm text-slate-500">点击选择或拖拽镜像文件到此处</p>
+                                <p class="text-xs text-slate-400 mt-1">支持 .tar、.tar.gz、.img 格式</p>
+                            </div>
+                            <div id="imageFileInfo" class="hidden">
+                                <svg class="mx-auto h-8 w-8 text-green-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <p id="imageFileName" class="text-sm font-medium text-slate-700"></p>
+                                <p id="imageFileSizeText" class="text-xs text-slate-400 mt-0.5"></p>
+                                <button type="button" onclick="event.stopPropagation(); clearFileUpload('images')" class="mt-2 text-xs text-red-500 hover:text-red-700 underline">移除文件</button>
+                            </div>
+                        </div>
+                        <input id="imageFileInput" type="file" accept=".tar,.tar.gz,.img,.tgz" class="hidden" onchange="handleFileSelect(this, 'images')">
+                        <div id="imageUploadProgress" class="hidden mt-3">
+                            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>上传中...</span>
+                                <span id="imageUploadPercent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2">
+                                <div id="imageUploadBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        ${existingFile ? `<div class="mt-2 flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2"><svg class="h-4 w-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="truncate">当前文件：${existingFile}${existingFileSize ? ' (' + existingFileSize + ')' : ''}</span></div>` : ''}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">描述</label>
+                        <textarea id="formFieldDesc" rows="2" placeholder="简要描述镜像用途与包含内容" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none">${item ? item.desc : ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">状态</label>
+                        <select id="formFieldStatus" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="enabled" ${item && item.status === 'enabled' ? 'selected' : ''}>已启用</option>
+                            <option value="disabled" ${item && item.status === 'disabled' ? 'selected' : ''}>已禁用</option>
+                        </select>
+                    </div>`;
+            } else if (type === 'algorithms') {
+                const existingFiles = item && item.fileList && item.fileList.length > 0 ? item.fileList : [];
+                const existingFilesHtml = existingFiles.length > 0 ? `
+                    <div class="mt-2 space-y-1">
+                        <p class="text-xs text-slate-500 mb-1">当前模型文件：</p>
+                        ${existingFiles.map(f => `<div class="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-1.5"><svg class="h-4 w-4 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="truncate">${f.name}${f.size ? ' (' + f.size + ')' : ''}</span></div>`).join('')}
+                    </div>` : '';
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">算法名称 <span class="text-red-500">*</span></label>
+                        <input id="formFieldName" type="text" value="${item ? item.name : ''}" placeholder="例如 BERT" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">版本</label>
+                            <input id="formFieldVersion" type="text" value="${item ? item.version : ''}" placeholder="例如 base-uncased" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ide-font">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">类别</label>
+                            <select id="formFieldCategory" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="NLP" ${item && item.category === 'NLP' ? 'selected' : ''}>NLP</option>
+                                <option value="计算机视觉" ${item && item.category === '计算机视觉' ? 'selected' : ''}>计算机视觉</option>
+                                <option value="生成模型" ${item && item.category === '生成模型' ? 'selected' : ''}>生成模型</option>
+                                <option value="语音" ${item && item.category === '语音' ? 'selected' : ''}>语音</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">模型文件 <span class="text-red-500">*</span></label>
+                        <div id="algoFileDropZone" class="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors" onclick="document.getElementById('algoFileInput').click()">
+                            <div id="algoFileUploadPrompt">
+                                <svg class="mx-auto h-10 w-10 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 48 48"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M24 8v24m0-24l-8 8m8-8l8 8M8 36h32a4 4 0 01-4 4H12a4 4 0 01-4-4z"/></svg>
+                                <p class="text-sm text-slate-500">点击选择或拖拽模型文件到此处</p>
+                                <p class="text-xs text-slate-400 mt-1">支持多文件上传（.bin、.safetensors、.pt、.onnx、.json）</p>
+                            </div>
+                            <div id="algoFileInfo" class="hidden">
+                                <svg class="mx-auto h-8 w-8 text-green-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <p id="algoFileCount" class="text-sm font-medium text-slate-700"></p>
+                                <div id="algoFileList" class="text-xs text-slate-500 mt-1 max-h-20 overflow-y-auto"></div>
+                                <button type="button" onclick="event.stopPropagation(); clearFileUpload('algorithms')" class="mt-2 text-xs text-red-500 hover:text-red-700 underline">移除全部文件</button>
+                            </div>
+                        </div>
+                        <input id="algoFileInput" type="file" accept=".bin,.safetensors,.pt,.onnx,.json,.pth,.h5,.pkl" multiple class="hidden" onchange="handleFileSelect(this, 'algorithms')">
+                        <div id="algoUploadProgress" class="hidden mt-3">
+                            <div class="flex justify-between text-xs text-slate-500 mb-1">
+                                <span>上传中...</span>
+                                <span id="algoUploadPercent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-200 rounded-full h-2">
+                                <div id="algoUploadBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        ${existingFilesHtml}
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">描述</label>
+                        <textarea id="formFieldDesc" rows="2" placeholder="简要描述算法用途与特点" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none">${item ? item.desc : ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">状态</label>
+                        <select id="formFieldStatus" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="enabled" ${item && item.status === 'enabled' ? 'selected' : ''}>已启用</option>
+                            <option value="disabled" ${item && item.status === 'disabled' ? 'selected' : ''}>已禁用</option>
+                        </select>
+                    </div>`;
+            } else if (type === 'gpumodels') {
+                container.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">GPU型号 <span class="text-red-500">*</span></label>
+                        <input id="formFieldName" type="text" value="${item ? item.name : ''}" placeholder="例如 NVIDIA A100" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">显存</label>
+                            <input id="formFieldVram" type="text" value="${item ? item.vram : ''}" placeholder="例如 80 GB" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">算力</label>
+                            <input id="formFieldCompute" type="text" value="${item ? item.compute : ''}" placeholder="例如 312 TFLOPS (FP16)" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ide-font">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">描述</label>
+                        <textarea id="formFieldDesc" rows="2" placeholder="简要描述GPU型号特点与适用场景" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none">${item ? item.desc : ''}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">状态</label>
+                        <select id="formFieldStatus" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="enabled" ${item && item.status === 'enabled' ? 'selected' : ''}>已启用</option>
+                            <option value="disabled" ${item && item.status === 'disabled' ? 'selected' : ''}>已禁用</option>
+                        </select>
+                    </div>`;
+            }
+        }
+
+        function closeInitItemModal() {
+            document.getElementById('initItemModal').classList.add('hidden');
+            editingItemId = null;
+        }
+
+        function saveInitItem() {
+            const type = document.getElementById('initItemModal').dataset.type;
+            const name = document.getElementById('formFieldName')?.value?.trim();
+            if (!name) { showToast('请填写名称', 'warning'); return; }
+            const desc = document.getElementById('formFieldDesc')?.value?.trim() || '';
+            const status = document.getElementById('formFieldStatus')?.value || 'enabled';
+
+            if (editingItemId) {
+                // 编辑
+                const item = initConfigData[type].find(i => i.id === editingItemId);
+                if (!item) return;
+                item.name = name;
+                item.desc = desc;
+                item.status = status;
+                if (type === 'images') {
+                    item.tag = document.getElementById('formFieldTag')?.value?.trim() || '';
+                    item.size = document.getElementById('formFieldSize')?.value?.trim() || '';
+                    if (pendingImageFile) {
+                        item.fileName = pendingImageFile.name;
+                        item.fileSize = formatFileSize(pendingImageFile.size);
+                    }
+                } else if (type === 'algorithms') {
+                    item.version = document.getElementById('formFieldVersion')?.value?.trim() || '';
+                    item.category = document.getElementById('formFieldCategory')?.value || 'NLP';
+                    if (pendingAlgoFiles.length > 0) {
+                        item.fileList = pendingAlgoFiles.map(f => ({ name: f.name, size: formatFileSize(f.size) }));
+                    }
+                } else if (type === 'gpumodels') {
+                    item.vram = document.getElementById('formFieldVram')?.value?.trim() || '';
+                    item.compute = document.getElementById('formFieldCompute')?.value?.trim() || '';
+                }
+                showToast(`${name} 已更新`, 'success');
+            } else {
+                // 新增
+                const newId = type.slice(0, 3) + '-' + String(Date.now()).slice(-4);
+                const newItem = { id: newId, name, desc, status };
+                if (type === 'images') {
+                    newItem.tag = document.getElementById('formFieldTag')?.value?.trim() || '';
+                    newItem.size = document.getElementById('formFieldSize')?.value?.trim() || '';
+                    if (pendingImageFile) {
+                        newItem.fileName = pendingImageFile.name;
+                        newItem.fileSize = formatFileSize(pendingImageFile.size);
+                    } else {
+                        newItem.fileName = '';
+                        newItem.fileSize = '';
+                    }
+                } else if (type === 'algorithms') {
+                    newItem.version = document.getElementById('formFieldVersion')?.value?.trim() || '';
+                    newItem.category = document.getElementById('formFieldCategory')?.value || 'NLP';
+                    if (pendingAlgoFiles.length > 0) {
+                        newItem.fileList = pendingAlgoFiles.map(f => ({ name: f.name, size: formatFileSize(f.size) }));
+                    } else {
+                        newItem.fileList = [];
+                    }
+                } else if (type === 'gpumodels') {
+                    newItem.vram = document.getElementById('formFieldVram')?.value?.trim() || '';
+                    newItem.compute = document.getElementById('formFieldCompute')?.value?.trim() || '';
+                }
+                initConfigData[type].push(newItem);
+                showToast(`${name} 已添加`, 'success');
+            }
+            pendingImageFile = null;
+            pendingAlgoFiles = [];
+            renderInitList(type);
+            closeInitItemModal();
+        }
+
+        function openDeleteConfirmModal(type, id) {
+            const item = initConfigData[type].find(i => i.id === id);
+            if (!item) return;
+            deletingItemInfo = { type, id, name: item.name };
+            const typeLabels = { images: '镜像', algorithms: '算法', gpumodels: 'GPU型号' };
+            document.getElementById('deleteConfirmMsg').textContent = `确定要删除${typeLabels[type]}「${item.name}」吗？此操作不可撤销。`;
+            document.getElementById('deleteConfirmModal').classList.remove('hidden');
+        }
+
+        function closeDeleteConfirmModal() {
+            document.getElementById('deleteConfirmModal').classList.add('hidden');
+            deletingItemInfo = null;
+        }
+
+        function confirmDeleteItem() {
+            if (!deletingItemInfo) return;
+            const { type, id, name } = deletingItemInfo;
+            initConfigData[type] = initConfigData[type].filter(i => i.id !== id);
+            renderInitList(type);
+            showToast(`${name} 已删除`, 'success');
+            closeDeleteConfirmModal();
+        }
+
+        // ========== 资源管理数据 ==========
+        const serverResources = [
+            { name: 'gpu-server-01', ip: '192.168.1.101', cpu: 72, cpuTotal: '64核', memory: 85, memTotal: '256GB', disk: 55, diskTotal: '4TB', gpu: 78, gpuInfo: '4x A100 80GB', status: 'online' },
+            { name: 'gpu-server-02', ip: '192.168.1.102', cpu: 45, cpuTotal: '32核', memory: 62, memTotal: '128GB', disk: 38, diskTotal: '2TB', gpu: 55, gpuInfo: '4x V100 32GB', status: 'online' },
+            { name: 'cpu-server-01', ip: '192.168.1.201', cpu: 58, cpuTotal: '96核', memory: 78, memTotal: '512GB', disk: 42, diskTotal: '8TB', gpu: 0, gpuInfo: '-', status: 'online' },
+            { name: 'storage-server-01', ip: '192.168.1.301', cpu: 22, cpuTotal: '16核', memory: 45, memTotal: '64GB', disk: 68, diskTotal: '20TB', gpu: 0, gpuInfo: '-', status: 'online' },
+            { name: 'api-server-01', ip: '192.168.1.401', cpu: 35, cpuTotal: '32核', memory: 52, memTotal: '128GB', disk: 28, diskTotal: '1TB', gpu: 0, gpuInfo: '-', status: 'online' },
+        ];
+
+        function renderResources() {
+            const tbody = document.getElementById('resourceTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = serverResources.map(s => {
+                const getBarColor = (val) => {
+                    if (val >= 80) return 'from-red-500 to-red-400';
+                    if (val >= 60) return 'from-yellow-500 to-yellow-400';
+                    return 'from-green-500 to-green-400';
+                };
+                const getStatusColor = (val) => {
+                    if (val >= 80) return 'text-red-600';
+                    if (val >= 60) return 'text-yellow-600';
+                    return 'text-green-600';
+                };
+                return `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-800">${s.name}</p>
+                                <p class="text-[10px] text-slate-400 ide-font">${s.ip}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden w-24"><div class="h-full bg-gradient-to-r ${getBarColor(s.cpu)} rounded-full resource-bar" style="width:${s.cpu}%"></div></div>
+                            <span class="${getStatusColor(s.cpu)} text-xs font-semibold">${s.cpu}%</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">${s.cpuTotal}</p>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden w-24"><div class="h-full bg-gradient-to-r ${getBarColor(s.memory)} rounded-full resource-bar" style="width:${s.memory}%"></div></div>
+                            <span class="${getStatusColor(s.memory)} text-xs font-semibold">${s.memory}%</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">${s.memTotal}</p>
+                    </td>
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden w-24"><div class="h-full bg-gradient-to-r ${getBarColor(s.disk)} rounded-full resource-bar" style="width:${s.disk}%"></div></div>
+                            <span class="${getStatusColor(s.disk)} text-xs font-semibold">${s.disk}%</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">${s.diskTotal}</p>
+                    </td>
+                    <td class="px-5 py-4">
+                        ${s.gpu > 0 ? `
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden w-24"><div class="h-full bg-gradient-to-r ${getBarColor(s.gpu)} rounded-full resource-bar" style="width:${s.gpu}%"></div></div>
+                            <span class="${getStatusColor(s.gpu)} text-xs font-semibold">${s.gpu}%</span>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1">${s.gpuInfo}</p>
+                        ` : '<span class="text-xs text-slate-400">-</span>'}
+                    </td>
+                    <td class="px-5 py-4">
+                        <span class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full font-medium flex items-center gap-1 w-fit">
+                            <div class="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                            在线
+                        </span>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function refreshResources() {
+            showToast('资源数据已刷新', 'success');
+        }
+
+        // ========== 用户配额数据 ==========
+        const quotaData = [
+            { username: '张明慧', email: 'zhangmh@example.com', cpu: '8/16 核', memory: '12/32 GB', gpu: '1/4 块', storage: '120/500 GB', containers: '3/5', status: 'normal' },
+            { username: '李伟', email: 'liwei@example.com', cpu: '4/8 核', memory: '8/32 GB', gpu: '0/2 块', storage: '45/500 GB', containers: '1/5', status: 'normal' },
+            { username: '王芳', email: 'wangfang@example.com', cpu: '14/16 核', memory: '28/32 GB', gpu: '3/4 块', storage: '480/500 GB', containers: '5/5', status: 'warning' },
+            { username: '赵磊', email: 'zhaolei@example.com', cpu: '12/12 核', memory: '30/30 GB', gpu: '2/2 块', storage: '298/300 GB', containers: '4/4', status: 'exceeded' },
+            { username: '陈雪', email: 'chenxue@example.com', cpu: '6/8 核', memory: '16/32 GB', gpu: '1/2 块', storage: '88/500 GB', containers: '2/5', status: 'normal' },
+            { username: '刘洋', email: 'liuyang@example.com', cpu: '10/12 核', memory: '26/30 GB', gpu: '2/2 块', storage: '250/300 GB', containers: '4/4', status: 'warning' },
+            { username: '孙悦', email: 'sunyue@example.com', cpu: '2/8 核', memory: '4/32 GB', gpu: '0/2 块', storage: '20/500 GB', containers: '1/5', status: 'normal' },
+        ];
+
+        function renderQuotas(data) {
+            const tbody = document.getElementById('quotaTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = data.map(q => {
+                const statusMap = {
+                    normal: { label: '正常', class: 'bg-green-100 text-green-700' },
+                    warning: { label: '接近上限', class: 'bg-yellow-100 text-yellow-700' },
+                    exceeded: { label: '已超限', class: 'bg-red-100 text-red-700' },
+                };
+                const st = statusMap[q.status];
+                return `<tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-gradient-to-br from-blue-300 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-xs">${q.username[0]}</div>
+                            <div>
+                                <p class="text-sm font-medium text-slate-800">${q.username}</p>
+                                <p class="text-[10px] text-slate-400">${q.email}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4 text-xs text-slate-700 ide-font">${q.cpu}</td>
+                    <td class="px-5 py-4 text-xs text-slate-700 ide-font">${q.memory}</td>
+                    <td class="px-5 py-4 text-xs text-slate-700 ide-font">${q.gpu}</td>
+                    <td class="px-5 py-4 text-xs text-slate-700 ide-font">${q.storage}</td>
+                    <td class="px-5 py-4 text-xs text-slate-700 ide-font">${q.containers}</td>
+                    <td class="px-5 py-4"><span class="px-2 py-0.5 ${st.class} text-[10px] rounded-full font-medium">${st.label}</span></td>
+                    <td class="px-5 py-4">
+                        <button onclick="openEditQuotaModal('${q.username}')" class="text-blue-600 text-xs font-medium hover:text-blue-700 mr-3">编辑</button>
+                        <button onclick="resetUserQuota('${q.username}')" class="text-slate-400 text-xs font-medium hover:text-red-600">重置</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function filterQuotas() {
+            const search = document.getElementById('quotaSearchInput').value.toLowerCase();
+            const filtered = quotaData.filter(q => q.username.toLowerCase().includes(search) || q.email.toLowerCase().includes(search));
+            renderQuotas(filtered);
+        }
+
+        function openEditQuotaModal(username) {
+            if (username) {
+                const user = quotaData.find(q => q.username === username);
+                if (user) document.getElementById('quotaUsername').value = user.username;
+            } else {
+                document.getElementById('quotaUsername').value = '';
+            }
+            document.getElementById('editQuotaModal').classList.remove('hidden');
+        }
+        function closeEditQuotaModal() { document.getElementById('editQuotaModal').classList.add('hidden'); }
+        function saveQuota() {
+            const username = document.getElementById('quotaUsername')?.value?.trim();
+            if (!username) { showToast('请输入用户名', 'warning'); return; }
+            showToast(`用户 "${username}" 配额已更新`, 'success');
+            closeEditQuotaModal();
+        }
+        function resetUserQuota(username) {
+            showToast(`用户 "${username}" 配额已重置为默认值`, 'success');
+        }
+
+        // ========== 初始化 ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            renderLogs(logData);
+            renderContainers(containerData);
+            renderInitList('images');
+            renderInitList('algorithms');
+            renderInitList('gpumodels');
+            renderResources();
+            renderQuotas(quotaData);
+        });
+    </script>
+</body>
+</html>
